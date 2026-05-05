@@ -1,0 +1,15 @@
+{
+    "name": "IELTS 8.0 — Дмитрий",
+    "short_name": "IELTS 8.0",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#F2F2F7",
+    "theme_color": "#007AFF",
+    "icons": [
+        {
+            "src": "icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

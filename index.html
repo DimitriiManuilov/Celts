@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="IELTS 8.0">
+    <link rel="manifest" href="manifest.json">
+    <title>IELTS 8.0</title>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        :root {
+            --blue: #007AFF;
+            --green: #34C759;
+            --orange: #FF9500;
+            --red: #FF3B30;
+            --purple: #AF52DE;
+            --bg: #F2F2F7;
+            --card: #FFFFFF;
+            --text: #000000;
+            --text2: #3C3C43;
+            --text3: #8E8E93;
+            --sep: #C6C6C8;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            max-width: 430px;
+            margin: 0 auto;
+        }
+
+        /* ── Tab Bar ── */
+        .tab-bar {
+            position: fixed; bottom: 0;
+            left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 430px;
+            background: rgba(255,255,255,0.88);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 0.5px solid var(--sep);
+            display: flex;
+            padding-bottom: env(safe-area-inset-bottom);
+            z-index: 100;
+        }
+        .tab-item {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; padding: 8px 0 4px;
+            cursor: pointer; border: none; background: none;
+            color: var(--text3); font-size: 10px; gap: 2px;
+            transition: color 0.15s;
+        }
+        .tab-item.active { color: var(--blue); }
+        .tab-icon { font-size: 22px; }
+
+        /* ── Screens ── */
+        .screen { display: none; padding-bottom: 90px; }
+        .screen.active { display: block; }
+
+        /* ── Page header ── */
+        .page-header {
+            padding: 52px 16px 10px;
+            display: flex; align-items: flex-end; justify-content: space-between;
+        }
+        .page-header-text {}
+        .page-title { font-size: 34px; font-weight: 700; letter-spacing: -0.5px; }
+        .page-sub { font-size: 13px; color: var(--text3); margin-top: 2px; }
+
+        .hdr-btn {
+            font-size: 16px; color: var(--blue);
+            background: none; border: none; cursor: pointer;
+            font-family: inherit; padding: 4px 0 4px 12px;
+            white-space: nowrap; align-self: flex-end;
+            padding-bottom: 6px;
+        }
+        .hdr-btn.done { font-weight: 600; }
+        .hdr-btn.danger { color: var(--red); font-size: 13px; }
+
+        /* ── Cards ── */
+        .card { background: var(--card); border-radius: 12px; margin: 8px 16px; overflow: hidden; }
+        .card-title {
+            font-size: 12px; font-weight: 600; color: var(--text3);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            padding: 12px 16px 6px;
+        }
+
+        /* ── Today progress bar ── */
+        .today-card {
+            background: var(--card); border-radius: 12px;
+            margin: 8px 16px; padding: 14px 16px;
+        }
+        .prog-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .prog-label { font-size: 14px; font-weight: 600; }
+        .prog-count { font-size: 14px; color: var(--text3); }
+        .prog-track { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .prog-fill {
+            height: 100%;
+            background: linear-gradient(to right, var(--blue), var(--purple));
+            border-radius: 4px; transition: width 0.3s;
+        }
+
+        /* ── Schedule items ── */
+        .sched-item {
+            display: flex; align-items: center;
+            padding: 11px 16px;
+            border-bottom: 0.5px solid var(--bg);
+            gap: 12px; cursor: pointer;
+            transition: background 0.1s;
+            -webkit-user-select: none; user-select: none;
+        }
+        .sched-item:last-child { border-bottom: none; }
+        .sched-item:active { background: var(--bg); }
+        .sched-item.current { background: #EBF4FF; }
+        .sched-item.past { opacity: 0.45; }
+        .sched-item.edit-mode { cursor: default; }
+        .sched-item.edit-mode:active { background: transparent; }
+        .sched-item.edit-mode.current:active { background: #EBF4FF; }
+
+        .sched-time { font-size: 12px; color: var(--text3); min-width: 42px; font-variant-numeric: tabular-nums; }
+        .sched-icon { font-size: 20px; min-width: 26px; text-align: center; }
+        .sched-label { flex: 1; font-size: 15px; line-height: 1.3; }
+        .sched-label.done { text-decoration: line-through; color: var(--text3); }
+
+        .check-circle {
+            width: 22px; height: 22px; border-radius: 50%;
+            border: 2px solid var(--sep);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-size: 11px; transition: all 0.2s;
+        }
+        .check-circle.on { background: var(--green); border-color: var(--green); color: #fff; }
+
+        /* ── Edit-mode action buttons ── */
+        .edit-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .ea-btn {
+            width: 30px; height: 30px; border-radius: 8px;
+            border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px;
+        }
+        .ea-btn.pencil { background: #E5F0FF; color: var(--blue); }
+        .ea-btn.trash  { background: #FFE5E5; color: var(--red); }
+
+        /* ── Add schedule item row ── */
+        .sched-add-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px;
+            border-top: 0.5px solid var(--sep);
+            cursor: pointer; color: var(--blue);
+            -webkit-user-select: none; user-select: none;
+        }
+        .sched-add-row:active { background: var(--bg); }
+        .sched-reset-row {
+            display: flex; align-items: center; justify-content: center;
+            padding: 10px 16px;
+            border-top: 0.5px solid var(--sep);
+            cursor: pointer; color: var(--red); font-size: 13px;
+            -webkit-user-select: none; user-select: none;
+        }
+        .sched-reset-row:active { background: var(--bg); }
+
+        /* ── Current time pill ── */
+        .now-pill {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 16px; background: #FFF0EE;
+        }
+        .now-dot { width: 7px; height: 7px; background: var(--red); border-radius: 50%; animation: blink 1.4s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .now-text { font-size: 12px; color: var(--red); font-weight: 500; }
+
+        /* ── Stat grid ── */
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 16px; }
+        .stat-card { background: var(--card); border-radius: 12px; padding: 14px; }
+        .stat-val { font-size: 34px; font-weight: 700; color: var(--blue); line-height: 1; }
+        .stat-lbl { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+        /* ── Phase bar ── */
+        .phase-wrap { padding: 14px 16px; }
+        .phase-name { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+        .phase-track { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+        .phase-fill { height: 100%; background: var(--blue); border-radius: 3px; transition: width .5s; }
+        .phase-lbl { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+        /* ── Mock table ── */
+        .mock-table { width: 100%; border-collapse: collapse; }
+        .mock-table th { font-size: 12px; color: var(--text3); font-weight: 500; padding: 6px 10px; text-align: center; border-bottom: 0.5px solid var(--sep); }
+        .mock-table td { font-size: 14px; padding: 9px 10px; text-align: center; border-bottom: 0.5px solid var(--bg); }
+        .mock-table tr:last-child td { border-bottom: none; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+
+        /* ── Resources ── */
+        .res-item {
+            padding: 12px 16px;
+            border-bottom: 0.5px solid var(--bg);
+            display: flex; align-items: flex-start; gap: 10px;
+            cursor: pointer;
+        }
+        .res-item:last-child { border-bottom: none; }
+        .res-item:active { background: var(--bg); }
+        .res-body { flex: 1; min-width: 0; }
+        .res-name { font-size: 15px; font-weight: 600; }
+        .res-meta { font-size: 12px; color: var(--text3); margin-top: 2px; }
+        .res-notes { font-size: 13px; color: var(--text2); margin-top: 4px; line-height: 1.4; }
+        .res-prog-row { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+        .res-prog-track { flex: 1; height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+        .res-prog-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+        .res-pct { font-size: 11px; color: var(--text3); min-width: 28px; text-align: right; }
+        .status-dot {
+            width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
+        }
+
+        /* ── Add button ── */
+        .add-btn {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px; cursor: pointer; color: var(--blue); font-size: 15px;
+            border: none; background: none; width: 100%;
+            border-top: 0.5px solid var(--sep); font-family: inherit;
+        }
+        .add-btn:active { background: var(--bg); }
+        .add-icon {
+            width: 28px; height: 28px; background: var(--blue); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 20px; font-weight: 300; line-height: 1;
+        }
+
+        /* ── Vocab ── */
+        .vocab-item { padding: 12px 16px; border-bottom: 0.5px solid var(--bg); }
+        .vocab-item:last-child { border-bottom: none; }
+        .vocab-word { font-size: 16px; font-weight: 600; }
+        .vocab-def { font-size: 13px; color: var(--text3); margin-top: 2px; }
+        .vocab-ex { font-size: 12px; color: var(--text3); font-style: italic; margin-top: 3px; }
+        .vocab-topic { display: inline-block; background: var(--bg); border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--text3); margin-top: 5px; }
+
+        /* ── Life sections ── */
+        .lc-card { background: var(--card); border-radius: 12px; margin: 8px 16px; overflow: hidden; }
+
+        .lc-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 13px 16px;
+            border-bottom: 0.5px solid var(--bg);
+        }
+        .lc-icon { font-size: 22px; }
+        .lc-title { font-size: 16px; font-weight: 700; flex: 1; }
+        .lc-mini-track {
+            width: 60px; height: 5px; background: var(--bg);
+            border-radius: 3px; overflow: hidden;
+        }
+        .lc-mini-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+        .lc-count { font-size: 12px; color: var(--text3); min-width: 28px; text-align: right; }
+
+        .lc-task-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 16px;
+            border-bottom: 0.5px solid var(--bg);
+        }
+        .lc-task-item:last-child { border-bottom: none; }
+        .lc-task-check {
+            width: 20px; height: 20px; border-radius: 50%;
+            border: 2px solid var(--sep); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; cursor: pointer; transition: all .2s;
+        }
+        .lc-task-check.on { border-color: var(--green); background: var(--green); color: #fff; }
+        .lc-task-text { flex: 1; font-size: 14px; line-height: 1.3; }
+        .lc-task-text.done { text-decoration: line-through; color: var(--text3); }
+        .lc-del { background: none; border: none; color: var(--sep); font-size: 18px; cursor: pointer; padding: 0 2px; line-height: 1; }
+        .lc-del:active { color: var(--red); }
+
+        .lc-add-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 16px;
+            border-top: 0.5px solid var(--sep);
+        }
+        .lc-input {
+            flex: 1; padding: 8px 10px;
+            border: 1px solid var(--sep); border-radius: 8px;
+            font-size: 14px; font-family: inherit;
+            background: var(--bg); outline: none;
+        }
+        .lc-input:focus { border-color: var(--blue); }
+        .lc-add-submit {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: var(--blue); color: #fff;
+            border: none; font-size: 20px; line-height: 1;
+            cursor: pointer; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .lc-add-submit:active { opacity: .8; }
+
+        .lc-notes-wrap { padding: 10px 16px 14px; border-top: 0.5px solid var(--sep); }
+        .lc-notes-lbl { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; font-weight: 600; }
+        .lc-notes-area {
+            width: 100%; padding: 9px 10px;
+            border: 1px solid var(--sep); border-radius: 8px;
+            font-size: 14px; font-family: inherit;
+            background: var(--bg); outline: none; resize: none;
+        }
+        .lc-notes-area:focus { border-color: var(--blue); }
+        .lc-save-btn {
+            margin-top: 7px; width: 100%; padding: 9px;
+            background: var(--bg); color: var(--blue);
+            border: 1px solid var(--sep); border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+        }
+        .lc-save-btn:active { background: var(--sep); }
+
+        /* ── Thoughts ── */
+        .thought-compose {
+            padding: 12px 16px 16px;
+        }
+        .thought-compose textarea {
+            width: 100%; padding: 10px 12px;
+            border: 1px solid var(--sep); border-radius: 10px;
+            font-size: 15px; font-family: inherit;
+            background: var(--bg); outline: none; resize: none;
+            transition: border-color 0.2s;
+        }
+        .thought-compose textarea:focus { border-color: var(--blue); }
+        .thought-send {
+            margin-top: 8px; width: 100%; padding: 12px;
+            background: var(--blue); color: #fff;
+            border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
+        }
+        .thought-send:active { opacity: 0.8; }
+
+        .thought-item {
+            padding: 12px 16px;
+            border-bottom: 0.5px solid var(--bg);
+        }
+        .thought-item:last-child { border-bottom: none; }
+        .thought-meta { font-size: 11px; color: var(--text3); margin-bottom: 5px; }
+        .thought-text { font-size: 15px; line-height: 1.5; white-space: pre-wrap; color: var(--text2); }
+
+        /* ── Weekly check-in ── */
+        .note-item { padding: 12px 16px; border-bottom: 0.5px solid var(--bg); }
+        .note-item:last-child { border-bottom: none; }
+        .note-date { font-size: 12px; color: var(--text3); margin-bottom: 6px; }
+        .note-row { font-size: 14px; margin-bottom: 3px; line-height: 1.4; }
+
+        /* ── Sync status ── */
+        .sync-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 12px; padding: 3px 8px; border-radius: 20px;
+            font-weight: 500;
+        }
+        .sync-badge.off     { background: var(--bg); color: var(--text3); }
+        .sync-badge.ok      { background: #E5F8EC; color: var(--green); }
+        .sync-badge.syncing { background: #FFF3E0; color: var(--orange); }
+        .sync-badge.err     { background: #FFE5E5; color: var(--red); }
+        .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+        .sync-dot.pulse { animation: blink 1.2s infinite; }
+
+        /* ── Day navigation ── */
+        .day-nav { display: flex; align-items: center; gap: 2px; padding-bottom: 6px; }
+        .dnav-btn {
+            width: 30px; height: 30px; border-radius: 8px;
+            background: var(--bg); border: none; cursor: pointer;
+            font-size: 20px; color: var(--blue); line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .dnav-btn:active { background: var(--sep); }
+        .dnav-today {
+            font-size: 12px; color: var(--blue); font-weight: 600;
+            background: #E5F0FF; border: none; cursor: pointer;
+            font-family: inherit; padding: 4px 8px; border-radius: 6px;
+        }
+        .day-past-banner {
+            background: #FFF8E5; padding: 6px 16px;
+            font-size: 12px; color: var(--orange); font-weight: 500;
+            text-align: center;
+        }
+
+        /* ── Sync textarea ── */
+        .sync-area {
+            width: 100%; height: 120px; padding: 10px;
+            border: 1px solid var(--sep); border-radius: 10px;
+            font-size: 11px; font-family: monospace;
+            background: var(--bg); outline: none; resize: none;
+        }
+        .sync-area:focus { border-color: var(--blue); }
+
+        /* ── Empty state ── */
+        .empty { padding: 28px 16px; text-align: center; color: var(--text3); font-size: 14px; }
+        .empty-icon { font-size: 38px; margin-bottom: 8px; }
+
+        /* ── Modal ── */
+        .overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.4); z-index: 200;
+            display: flex; align-items: flex-end;
+            opacity: 0; pointer-events: none; transition: opacity 0.25s;
+        }
+        .overlay.open { opacity: 1; pointer-events: all; }
+        .modal {
+            width: 100%; max-width: 430px; margin: 0 auto;
+            background: var(--card); border-radius: 16px 16px 0 0;
+            padding: 20px 16px calc(24px + env(safe-area-inset-bottom));
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(.32,.72,0,1);
+        }
+        .overlay.open .modal { transform: translateY(0); }
+        .modal-handle { width: 36px; height: 4px; background: var(--sep); border-radius: 2px; margin: 0 auto 18px; }
+        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; text-align: center; }
+
+        .field { margin-bottom: 12px; }
+        .field label { font-size: 13px; color: var(--text3); display: block; margin-bottom: 4px; }
+        .field input, .field textarea, .field select {
+            width: 100%; padding: 10px 12px;
+            border: 1px solid var(--sep); border-radius: 10px;
+            font-size: 15px; font-family: inherit;
+            background: var(--bg); outline: none; -webkit-appearance: none;
+        }
+        .field input:focus, .field textarea:focus { border-color: var(--blue); }
+        .field textarea { resize: none; }
+        .row { display: flex; gap: 8px; }
+        .row .field { flex: 1; }
+
+        .btn-primary {
+            width: 100%; padding: 14px;
+            background: var(--blue); color: #fff;
+            border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 600;
+            cursor: pointer; font-family: inherit; margin-top: 4px;
+        }
+        .btn-primary:active { opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════ SCREEN: День ═══════════════ -->
+<div id="s-schedule" class="screen active">
+    <div class="page-header">
+        <div class="page-header-text">
+            <div class="page-title">День</div>
+            <div class="page-sub" id="today-date"></div>
+        </div>
+        <div class="day-nav">
+            <button class="dnav-btn" onclick="prevDay()">‹</button>
+            <button class="dnav-today" id="today-jump" onclick="goToday()" style="display:none">Сегодня</button>
+            <button class="dnav-btn" onclick="nextDay()">›</button>
+            <button class="hdr-btn" id="edit-btn" onclick="toggleEditMode()">Изменить</button>
+        </div>
+    </div>
+    <div id="past-banner" style="display:none" class="day-past-banner"></div>
+
+    <div class="today-card" id="prog-card">
+        <div class="prog-row">
+            <span class="prog-label" id="prog-label">Выполнено сегодня</span>
+            <span class="prog-count" id="prog-count">0 / 0</span>
+        </div>
+        <div class="prog-track">
+            <div class="prog-fill" id="prog-fill" style="width:0%"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div id="sched-list"></div>
+    </div>
+</div>
+
+<!-- ═══════════════ SCREEN: Прогресс ═══════════════ -->
+<div id="s-progress" class="screen">
+    <div class="page-header">
+        <div class="page-header-text">
+            <div class="page-title">Прогресс</div>
+            <div class="page-sub">Экзамен: 14 августа 2026</div>
+        </div>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card"><div class="stat-val" id="st-days">—</div><div class="stat-lbl">дней до экзамена</div></div>
+        <div class="stat-card"><div class="stat-val" id="st-done">—</div><div class="stat-lbl">дней позади</div></div>
+        <div class="stat-card"><div class="stat-val" id="st-score">—</div><div class="stat-lbl">последний балл</div></div>
+        <div class="stat-card"><div class="stat-val" id="st-words">0</div><div class="stat-lbl">слов изучено</div></div>
+    </div>
+
+    <div class="card">
+        <div class="phase-wrap">
+            <div class="card-title" style="padding:0 0 6px">Фаза подготовки</div>
+            <div class="phase-name" id="phase-name">Фаза 1: Основа</div>
+            <div class="phase-track"><div class="phase-fill" id="phase-fill" style="width:0%"></div></div>
+            <div class="phase-lbl"><span>30 апр</span><span>14 авг</span></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Mock тесты</div>
+        <div id="mock-body"><div class="empty"><div class="empty-icon">📝</div>Пока нет результатов</div></div>
+        <button class="add-btn" onclick="openModal('m-mock')">
+            <div class="add-icon">+</div>Добавить результат
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Ресурсы</div>
+        <div id="res-list"><div class="empty"><div class="empty-icon">🔗</div>Нет ресурсов</div></div>
+        <button class="add-btn" onclick="openAddRes()">
+            <div class="add-icon">+</div>Добавить ресурс
+        </button>
+    </div>
+</div>
+
+<!-- ═══════════════ SCREEN: Словарь ═══════════════ -->
+<div id="s-vocab" class="screen">
+    <div class="page-header">
+        <div class="page-header-text">
+            <div class="page-title">Словарь</div>
+            <div class="page-sub" id="vocab-sub">0 слов изучено</div>
+        </div>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card"><div class="stat-val" id="v-today">0</div><div class="stat-lbl">слов сегодня</div></div>
+        <div class="stat-card"><div class="stat-val" id="v-total">0</div><div class="stat-lbl">всего слов</div></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Все слова</div>
+        <div id="vocab-list"><div class="empty"><div class="empty-icon">📚</div>Добавь первое слово</div></div>
+        <button class="add-btn" onclick="openModal('m-vocab')">
+            <div class="add-icon">+</div>Добавить слово
+        </button>
+    </div>
+</div>
+
+<!-- ═══════════════ SCREEN: Заметки ═══════════════ -->
+<div id="s-notes" class="screen">
+    <div class="page-header">
+        <div class="page-header-text">
+            <div class="page-title">Заметки</div>
+            <div class="page-sub">Мысли и чек-ин</div>
+        </div>
+    </div>
+
+    <!-- Мысли -->
+    <div class="card">
+        <div class="card-title">Мысли</div>
+        <div class="thought-compose">
+            <textarea id="t-text" rows="4" placeholder="Что на уме? Запиши мысль, наблюдение, идею..."></textarea>
+            <button class="thought-send" onclick="saveThought()">Сохранить</button>
+        </div>
+        <div id="thoughts-list">
+            <div class="empty"><div class="empty-icon">💭</div>Пока нет записей</div>
+        </div>
+    </div>
+
+    <!-- Недельный чек-ин -->
+    <div class="card">
+        <div class="card-title">Недельный чек-ин</div>
+        <div style="padding: 4px 16px 16px;">
+            <div class="field" style="margin-top:8px">
+                <label>Что улучшилось?</label>
+                <textarea id="n-imp" rows="2" placeholder="Например: Reading стал быстрее..."></textarea>
+            </div>
+            <div class="field">
+                <label>Основная слабость?</label>
+                <textarea id="n-weak" rows="2" placeholder="Например: Task 2, нехватка связок..."></textarea>
+            </div>
+            <div class="field">
+                <label>Заметки</label>
+                <textarea id="n-gen" rows="3" placeholder="Что угодно..."></textarea>
+            </div>
+            <button class="btn-primary" onclick="saveNote()">Сохранить чек-ин</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">История чек-инов</div>
+        <div id="notes-hist"><div class="empty"><div class="empty-icon">🗒️</div>Пока нет записей</div></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Синхронизация</div>
+        <div style="padding:12px 16px 6px;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:15px;font-weight:600">Firebase</span>
+            <span class="sync-badge off" id="sync-badge"><span class="sync-dot"></span><span id="sync-txt">не подключён</span></span>
+        </div>
+        <div style="display:flex;gap:8px;padding:8px 16px 12px">
+            <button onclick="openModal('m-firebase')" style="flex:1;padding:10px;background:var(--blue);border:none;border-radius:10px;font-size:14px;cursor:pointer;font-family:inherit;color:#fff;font-weight:600">⚙️ Настройки</button>
+            <button onclick="pushToFirebase(true)" style="flex:1;padding:10px;background:var(--bg);border:1px solid var(--sep);border-radius:10px;font-size:14px;cursor:pointer;font-family:inherit;color:var(--blue);font-weight:600">☁️ Sync сейчас</button>
+        </div>
+        <div style="padding:0 16px 4px;border-top:0.5px solid var(--sep)">
+            <div style="padding:10px 0 4px;font-size:13px;font-weight:600;color:var(--text2)">Ручная синхронизация</div>
+        </div>
+        <div style="display:flex;gap:8px;padding:4px 16px 12px">
+            <button onclick="openExport()" style="flex:1;padding:10px;background:var(--bg);border:1px solid var(--sep);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--text2)">📤 Экспорт</button>
+            <button onclick="openImport()" style="flex:1;padding:10px;background:var(--bg);border:1px solid var(--sep);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--text2)">📥 Импорт</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ SCREEN: Жизнь ═══════════════ -->
+<div id="s-life" class="screen">
+    <div class="page-header">
+        <div class="page-header-text">
+            <div class="page-title">Жизнь</div>
+            <div class="page-sub">Задачи и заметки</div>
+        </div>
+    </div>
+    <div id="life-sections"></div>
+</div>
+
+<!-- ═══════════════ TAB BAR ═══════════════ -->
+<nav class="tab-bar">
+    <button class="tab-item active" onclick="go('schedule',this)"><span class="tab-icon">📅</span><span>День</span></button>
+    <button class="tab-item" onclick="go('progress',this)"><span class="tab-icon">📊</span><span>Прогресс</span></button>
+    <button class="tab-item" onclick="go('vocab',this)"><span class="tab-icon">📚</span><span>Слова</span></button>
+    <button class="tab-item" onclick="go('notes',this)"><span class="tab-icon">🗒️</span><span>Заметки</span></button>
+    <button class="tab-item" onclick="go('life',this)"><span class="tab-icon">🌱</span><span>Жизнь</span></button>
+</nav>
+
+<!-- ═══════════════ MODAL: Mock Test ═══════════════ -->
+<div class="overlay" id="m-mock" onclick="bgClose(event,'m-mock')">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Результат mock теста</div>
+        <div class="field"><label>Дата</label><input type="date" id="mk-date"></div>
+        <div class="row">
+            <div class="field"><label>Listening</label><input type="number" id="mk-l" placeholder="0–9" min="0" max="9" step="0.5"></div>
+            <div class="field"><label>Reading</label><input type="number" id="mk-r" placeholder="0–9" min="0" max="9" step="0.5"></div>
+        </div>
+        <div class="row">
+            <div class="field"><label>Writing</label><input type="number" id="mk-w" placeholder="0–9" min="0" max="9" step="0.5"></div>
+            <div class="field"><label>Speaking</label><input type="number" id="mk-s" placeholder="0–9" min="0" max="9" step="0.5"></div>
+        </div>
+        <button class="btn-primary" onclick="addMock()">Добавить</button>
+    </div>
+</div>
+
+<!-- ═══════════════ MODAL: Vocab ═══════════════ -->
+<div class="overlay" id="m-vocab" onclick="bgClose(event,'m-vocab')">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Новое слово</div>
+        <div class="field"><label>Слово</label><input type="text" id="vw-word" placeholder="e.g. exacerbate"></div>
+        <div class="field"><label>Определение (на английском)</label><input type="text" id="vw-def" placeholder="to make a problem worse"></div>
+        <div class="field"><label>Пример предложения</label><input type="text" id="vw-ex" placeholder="Climate change exacerbates drought."></div>
+        <div class="field">
+            <label>Топик</label>
+            <select id="vw-topic">
+                <option>Общее</option><option>Окружающая среда</option>
+                <option>Технологии</option><option>Общество</option>
+                <option>Образование</option><option>Здоровье</option>
+                <option>Экономика</option><option>AWL</option>
+            </select>
+        </div>
+        <button class="btn-primary" onclick="addWord()">Добавить</button>
+    </div>
+</div>
+
+<!-- ═══════════════ MODAL: Resource ═══════════════ -->
+<div class="overlay" id="m-res" onclick="bgClose(event,'m-res')">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="res-modal-title">Новый ресурс</div>
+        <input type="hidden" id="re-id">
+        <div class="field"><label>Название</label><input type="text" id="re-name" placeholder="IELTS Simon"></div>
+        <div class="row">
+            <div class="field">
+                <label>Категория</label>
+                <select id="re-type">
+                    <option>Writing</option><option>Reading</option><option>Listening</option>
+                    <option>Speaking</option><option>Vocabulary</option><option>Grammar</option>
+                    <option>Mock Tests</option><option>Общее</option>
+                </select>
+            </div>
+            <div class="field" style="flex:0 0 80px">
+                <label>Прогресс %</label>
+                <input type="number" id="re-pct" placeholder="0" min="0" max="100">
+            </div>
+        </div>
+        <div class="field"><label>Заметки / что сделано</label><textarea id="re-notes" rows="3" placeholder="Прошёл Task 2 раздел, осталось Speaking..."></textarea></div>
+        <button class="btn-primary" onclick="saveRes()">Сохранить</button>
+    </div>
+</div>
+
+<!-- ═══════════════ MODAL: Firebase ═══════════════ -->
+<div class="overlay" id="m-firebase" onclick="bgClose(event,'m-firebase')">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Настройка Firebase</div>
+        <div class="field">
+            <label>API Key</label>
+            <input type="text" id="fb-apikey" placeholder="AIzaSy...">
+        </div>
+        <div class="field">
+            <label>Database URL</label>
+            <input type="text" id="fb-dburl" placeholder="https://project-rtdb.firebaseio.com">
+        </div>
+        <div class="field">
+            <label>Project ID</label>
+            <input type="text" id="fb-projid" placeholder="my-ielts-app">
+        </div>
+        <div class="field">
+            <label>Ключ синхронизации (одинаковый на обоих устройствах)</label>
+            <input type="text" id="fb-synckey" placeholder="придумай слово, например: dmitriy2026">
+        </div>
+        <button class="btn-primary" onclick="saveFbConfig()">Подключить</button>
+        <button onclick="disconnectFb()" style="width:100%;margin-top:8px;padding:12px;background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;font-family:inherit">Отключить Firebase</button>
+    </div>
+</div>
+
+<!-- ═══════════════ MODAL: Sync ═══════════════ -->
+<div class="overlay" id="m-sync" onclick="bgClose(event,'m-sync')">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="sync-title">Экспорт данных</div>
+        <div class="field">
+            <label id="sync-lbl">Скопируй и сохрани (Notes, Telegram):</label>
+            <textarea class="sync-area" id="sync-area" readonly></textarea>
+        </div>
+        <button class="btn-primary" id="sync-copy-btn" onclick="syncCopy()">Копировать всё</button>
+        <div id="sync-import-wrap" style="display:none">
+            <div class="field" style="margin-top:12px">
+                <label>Вставь данные для импорта:</label>
+                <textarea class="sync-area" id="import-area" style="height:140px"></textarea>
+            </div>
+            <button class="btn-primary" onclick="doImport()" style="background:var(--green)">Импортировать</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ MODAL: Edit Schedule Item ═══════════════ -->
+<div class="overlay" id="m-sched-edit" onclick="bgClose(event,'m-sched-edit')">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="sched-modal-title">Изменить пункт</div>
+        <input type="hidden" id="se-id">
+        <div class="row">
+            <div class="field" style="flex:0 0 110px">
+                <label>Время</label>
+                <input type="time" id="se-time">
+            </div>
+            <div class="field" style="flex:0 0 70px">
+                <label>Иконка</label>
+                <input type="text" id="se-icon" placeholder="😴" maxlength="4" style="text-align:center;font-size:22px;padding:6px 8px">
+            </div>
+        </div>
+        <div class="field">
+            <label>Название</label>
+            <input type="text" id="se-label" placeholder="Что делать">
+        </div>
+        <button class="btn-primary" onclick="saveSchedItem()">Сохранить</button>
+    </div>
+</div>
+
+<script>
+// ─── Default schedule ─────────────────────────────
+const DEFAULT_SCHED = [
+    { id:1,  time:"07:00", label:"Подъём, БЕЗ телефона 30 минут",         icon:"🌅" },
+    { id:2,  time:"07:00", label:"Холодный душ + разминка 10 мин",         icon:"🚿" },
+    { id:3,  time:"07:20", label:"Завтрак (без экранов)",                   icon:"🍳" },
+    { id:4,  time:"07:40", label:"Anki — повтор вчерашних слов",            icon:"🗂️" },
+    { id:5,  time:"08:00", label:"IELTS блок 1: Listening или Reading",     icon:"🎧" },
+    { id:6,  time:"09:30", label:"Перерыв — воздух / чай",                 icon:"☕" },
+    { id:7,  time:"09:45", label:"IELTS блок 2: Writing Task 2",           icon:"✍️" },
+    { id:8,  time:"11:15", label:"Перерыв",                                 icon:"🧘" },
+    { id:9,  time:"11:30", label:"Учёба / исследования ВШЭ",               icon:"📖" },
+    { id:10, time:"12:30", label:"Обед — подкаст на английском",           icon:"🍽️" },
+    { id:11, time:"13:30", label:"Учёба / исследования ВШЭ",               icon:"📖" },
+    { id:12, time:"15:00", label:"Тренировка",                              icon:"🏋️" },
+    { id:13, time:"16:30", label:"Душ, восстановление",                     icon:"🚿" },
+    { id:14, time:"17:00", label:"Speaking practice (запись себя)",         icon:"🎙️" },
+    { id:15, time:"18:00", label:"Свободное время / соцсети (1 час)",      icon:"📱" },
+    { id:16, time:"19:00", label:"Ужин",                                    icon:"🍽️" },
+    { id:17, time:"19:30", label:"Чтение на английском / подкаст",         icon:"📰" },
+    { id:18, time:"21:00", label:"Anki — 15 новых слов",                   icon:"📝" },
+    { id:19, time:"21:30", label:"Завершение дел, план на завтра",         icon:"✅" },
+    { id:20, time:"22:00", label:"Без экранов, телефон в другой комнате",  icon:"🌙" },
+    { id:21, time:"23:00", label:"Сон",                                     icon:"😴" },
+];
+
+const EXAM  = new Date("2026-08-14");
+const START = new Date("2026-04-30");
+
+// ─── Storage ─────────────────────────────────────
+const load = k => JSON.parse(localStorage.getItem(k) || (k==='checks'||k==='sched_custom'?'null':'[]'));
+const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+
+function loadSched() {
+    const custom = load('sched_custom');
+    return custom || JSON.parse(JSON.stringify(DEFAULT_SCHED));
+}
+function saveSched(arr) { save('sched_custom', arr); }
+
+const todayStr = () => new Date().toISOString().split('T')[0];
+function toMin(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
+function nowMin() { const n=new Date(); return n.getHours()*60+n.getMinutes(); }
+
+function fmtDate(d) {
+    return new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+}
+function fmtDateTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'}) + ' · ' +
+           d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+}
+function overall(l,r,w,s) { return Math.round(((+l+ +r+ +w+ +s)/4)*2)/2; }
+function bandColor(b) { return b>=8?'#34C759':b>=7?'#FF9500':'#FF3B30'; }
+
+// ─── Tabs ─────────────────────────────────────────
+function go(name, btn) {
+    if(editMode) exitEditMode();
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.tab-item').forEach(b=>b.classList.remove('active'));
+    document.getElementById('s-'+name).classList.add('active');
+    btn.classList.add('active');
+    if(name==='progress') { drawProgress(); drawRes(); }
+    if(name==='vocab')    drawVocab();
+    if(name==='notes')    drawNotes();
+    if(name==='life')     drawLife();
+}
+
+// ─── Day navigation ───────────────────────────────
+let viewDate = todayStr();
+
+function prevDay() {
+    const d = new Date(viewDate + 'T12:00:00');
+    d.setDate(d.getDate() - 1);
+    viewDate = d.toISOString().split('T')[0];
+    drawSchedule();
+}
+function nextDay() {
+    const d = new Date(viewDate + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    const next = d.toISOString().split('T')[0];
+    if(next <= todayStr()) { viewDate = next; drawSchedule(); }
+}
+function goToday() {
+    viewDate = todayStr();
+    drawSchedule();
+}
+
+// ─── Edit mode state ──────────────────────────────
+let editMode = false;
+
+function toggleEditMode() {
+    editMode ? exitEditMode() : enterEditMode();
+}
+function enterEditMode() {
+    editMode = true;
+    document.getElementById('edit-btn').textContent = 'Готово';
+    document.getElementById('edit-btn').classList.add('done');
+    document.getElementById('prog-card').style.display = 'none';
+    drawSchedule();
+}
+function exitEditMode() {
+    editMode = false;
+    document.getElementById('edit-btn').textContent = 'Изменить';
+    document.getElementById('edit-btn').classList.remove('done');
+    document.getElementById('prog-card').style.display = '';
+    drawSchedule();
+}
+
+// ─── Schedule ─────────────────────────────────────
+function drawSchedule() {
+    const sched    = loadSched();
+    const checks   = load('checks') || {};
+    const today    = todayStr();
+    const isToday  = viewDate === today;
+    const done     = checks[viewDate] || {};
+    const now      = nowMin();
+
+    // Date label
+    const dateObj = new Date(viewDate + 'T12:00:00');
+    const yesterday = new Date(today + 'T12:00:00');
+    yesterday.setDate(yesterday.getDate()-1);
+    const yStr = yesterday.toISOString().split('T')[0];
+
+    let dateLbl;
+    if(isToday)          dateLbl = new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+    else if(viewDate===yStr) dateLbl = 'Вчера · ' + fmtDate(viewDate);
+    else                 dateLbl = fmtDate(viewDate) + ' · ' + dateObj.toLocaleDateString('ru-RU',{weekday:'long'});
+    document.getElementById('today-date').textContent = dateLbl;
+
+    // Today button + past banner
+    document.getElementById('today-jump').style.display = isToday ? 'none' : '';
+    const banner = document.getElementById('past-banner');
+    banner.style.display = isToday ? 'none' : '';
+    if(!isToday) banner.textContent = '📅 Просмотр: ' + dateLbl;
+
+    // Edit button only on today
+    document.getElementById('edit-btn').style.display = isToday ? '' : 'none';
+    document.getElementById('prog-label').textContent = isToday ? 'Выполнено сегодня' : 'Выполнено в этот день';
+
+    let html = '';
+
+    for(let i=0; i<sched.length; i++){
+        const item    = sched[i];
+        const start   = toMin(item.time);
+        const end     = i+1 < sched.length ? toMin(sched[i+1].time) : 24*60;
+        const current = now>=start && now<end;
+        const past    = now>=end;
+        const checked = !!done[item.id];
+
+        if(!editMode && current && isToday){
+            html += `<div class="now-pill"><div class="now-dot"></div><div class="now-text">Сейчас · ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+        }
+
+        if(editMode){
+            html += `<div class="sched-item edit-mode${current?' current':''}">
+                <div class="sched-time">${item.time}</div>
+                <div class="sched-icon">${item.icon}</div>
+                <div class="sched-label">${item.label}</div>
+                <div class="edit-actions">
+                    <button class="ea-btn pencil" onclick="openEditItem(${item.id})">✏️</button>
+                    <button class="ea-btn trash"  onclick="deleteItem(${item.id})">🗑️</button>
+                </div>
+            </div>`;
+        } else {
+            html += `<div class="sched-item${current?' current':past?' past':''}" onclick="toggleCheck(${item.id})">
+                <div class="sched-time">${item.time}</div>
+                <div class="sched-icon">${item.icon}</div>
+                <div class="sched-label${checked?' done':''}">${item.label}</div>
+                <div class="check-circle${checked?' on':''}">${checked?'✓':''}</div>
+            </div>`;
+        }
+    }
+
+    if(editMode){
+        html += `<div class="sched-add-row" onclick="openAddItem()">
+            <div class="add-icon" style="background:var(--green)">+</div>
+            <span style="color:var(--green);font-size:15px">Добавить пункт</span>
+        </div>
+        <div class="sched-reset-row" onclick="resetSched()">Сбросить к стандартному расписанию</div>`;
+    }
+
+    document.getElementById('sched-list').innerHTML = html;
+
+    if(!editMode){
+        const doneCount = Object.values(done).filter(Boolean).length;
+        const total = sched.length;
+        document.getElementById('prog-count').textContent = `${doneCount} / ${total}`;
+        document.getElementById('prog-fill').style.width = `${total?Math.round(doneCount/total*100):0}%`;
+    }
+}
+
+function toggleCheck(id){
+    const checks = load('checks') || {};
+    if(!checks[viewDate]) checks[viewDate]={};
+    checks[viewDate][id] = !checks[viewDate][id];
+    save('checks', checks);
+    drawSchedule();
+}
+
+function openEditItem(id){
+    const sched = loadSched();
+    const item  = sched.find(s=>s.id===id);
+    if(!item) return;
+    document.getElementById('sched-modal-title').textContent = 'Изменить пункт';
+    document.getElementById('se-id').value    = id;
+    document.getElementById('se-time').value  = item.time;
+    document.getElementById('se-icon').value  = item.icon;
+    document.getElementById('se-label').value = item.label;
+    openModal('m-sched-edit');
+}
+
+function openAddItem(){
+    document.getElementById('sched-modal-title').textContent = 'Новый пункт';
+    document.getElementById('se-id').value    = '';
+    document.getElementById('se-time').value  = '08:00';
+    document.getElementById('se-icon').value  = '📌';
+    document.getElementById('se-label').value = '';
+    openModal('m-sched-edit');
+}
+
+function saveSchedItem(){
+    const time  = document.getElementById('se-time').value;
+    const icon  = document.getElementById('se-icon').value.trim() || '📌';
+    const label = document.getElementById('se-label').value.trim();
+    if(!time || !label) return;
+
+    const sched = loadSched();
+    const idVal = document.getElementById('se-id').value;
+
+    if(idVal){
+        const idx = sched.findIndex(s=>s.id===+idVal);
+        if(idx>-1){ sched[idx].time=time; sched[idx].icon=icon; sched[idx].label=label; }
+    } else {
+        sched.push({ id: Date.now(), time, icon, label });
+    }
+
+    sched.sort((a,b)=>toMin(a.time)-toMin(b.time));
+    saveSched(sched);
+    closeModal('m-sched-edit');
+    drawSchedule();
+}
+
+function deleteItem(id){
+    const sched = loadSched().filter(s=>s.id!==id);
+    saveSched(sched);
+    drawSchedule();
+}
+
+function resetSched(){
+    if(!confirm('Сбросить расписание к стандартному?')) return;
+    localStorage.removeItem('sched_custom');
+    drawSchedule();
+}
+
+// ─── Progress ─────────────────────────────────────
+function drawProgress(){
+    const mocks = load('mocks');
+    const vocab = load('vocab');
+    const now   = new Date();
+
+    const dLeft  = Math.max(0, Math.ceil((EXAM-now)/(864e5)));
+    const dDone  = Math.max(0, Math.floor((now-START)/(864e5)));
+    const dTotal = Math.floor((EXAM-START)/(864e5));
+
+    document.getElementById('st-days').textContent  = dLeft;
+    document.getElementById('st-done').textContent  = dDone;
+    document.getElementById('st-words').textContent = vocab.length;
+    document.getElementById('phase-fill').style.width = Math.min(100,Math.round(dDone/dTotal*100))+'%';
+
+    const pname = document.getElementById('phase-name');
+    if(dDone<=30)       pname.textContent='Фаза 1: Основа (дни 1–30)';
+    else if(dDone<=70)  pname.textContent='Фаза 2: Прокачка (дни 31–70)';
+    else if(dDone<=100) pname.textContent='Фаза 3: Интенсив (дни 71–100)';
+    else                pname.textContent='Фаза 4: Финал (дни 101–106)';
+
+    if(mocks.length){
+        const last=mocks[mocks.length-1];
+        document.getElementById('st-score').textContent=overall(last.l,last.r,last.w,last.s).toFixed(1);
+    }
+
+    const body=document.getElementById('mock-body');
+    if(!mocks.length){ body.innerHTML='<div class="empty"><div class="empty-icon">📝</div>Пока нет результатов</div>'; return; }
+    let t=`<table class="mock-table"><tr><th>Дата</th><th>L</th><th>R</th><th>W</th><th>S</th><th>Overall</th></tr>`;
+    [...mocks].reverse().forEach(m=>{
+        const ov=overall(m.l,m.r,m.w,m.s), c=bandColor(ov);
+        t+=`<tr><td style="font-size:12px">${fmtDate(m.date)}</td>
+            <td>${m.l}</td><td>${m.r}</td><td>${m.w}</td><td>${m.s}</td>
+            <td><span class="badge" style="background:${c}20;color:${c}">${ov.toFixed(1)}</span></td></tr>`;
+    });
+    body.innerHTML=t+'</table>';
+}
+
+// ─── Vocabulary ───────────────────────────────────
+function drawVocab(){
+    const vocab  = load('vocab');
+    const today  = todayStr();
+    const tCount = vocab.filter(w=>w.date===today).length;
+    document.getElementById('v-today').textContent  = tCount;
+    document.getElementById('v-total').textContent  = vocab.length;
+    document.getElementById('vocab-sub').textContent= `${vocab.length} слов изучено`;
+    const list=document.getElementById('vocab-list');
+    if(!vocab.length){ list.innerHTML='<div class="empty"><div class="empty-icon">📚</div>Добавь первое слово</div>'; return; }
+    list.innerHTML=[...vocab].reverse().map(w=>`
+        <div class="vocab-item">
+            <div class="vocab-word">${w.word}</div>
+            ${w.def?`<div class="vocab-def">${w.def}</div>`:''}
+            ${w.ex?`<div class="vocab-ex">"${w.ex}"</div>`:''}
+            <span class="vocab-topic">${w.topic||'Общее'}</span>
+        </div>`).join('');
+}
+
+// ─── Thoughts ─────────────────────────────────────
+function saveThought(){
+    const text = document.getElementById('t-text').value.trim();
+    if(!text) return;
+    const thoughts = load('thoughts');
+    thoughts.unshift({ id: Date.now(), text, dt: new Date().toISOString() });
+    save('thoughts', thoughts);
+    document.getElementById('t-text').value = '';
+    drawThoughts();
+}
+
+function drawThoughts(){
+    const thoughts = load('thoughts');
+    const list = document.getElementById('thoughts-list');
+    if(!thoughts.length){ list.innerHTML='<div class="empty"><div class="empty-icon">💭</div>Пока нет записей</div>'; return; }
+    list.innerHTML = thoughts.map(t=>`
+        <div class="thought-item">
+            <div class="thought-meta">${fmtDateTime(t.dt)}</div>
+            <div class="thought-text">${t.text.replace(/</g,'&lt;')}</div>
+        </div>`).join('');
+}
+
+// ─── Weekly notes ─────────────────────────────────
+function saveNote(){
+    const imp  = document.getElementById('n-imp').value.trim();
+    const weak = document.getElementById('n-weak').value.trim();
+    const gen  = document.getElementById('n-gen').value.trim();
+    if(!imp&&!weak&&!gen) return;
+    const notes=load('notes');
+    notes.unshift({date:todayStr(),imp,weak,gen});
+    save('notes',notes);
+    document.getElementById('n-imp').value='';
+    document.getElementById('n-weak').value='';
+    document.getElementById('n-gen').value='';
+    drawNotes();
+}
+
+function drawNotes(){
+    drawThoughts();
+    const notes=load('notes');
+    const hist=document.getElementById('notes-hist');
+    if(!notes.length){ hist.innerHTML='<div class="empty"><div class="empty-icon">🗒️</div>Пока нет записей</div>'; return; }
+    hist.innerHTML=notes.map(n=>`
+        <div class="note-item">
+            <div class="note-date">${fmtDate(n.date)}</div>
+            ${n.imp  ?`<div class="note-row">✅ <b>Успех:</b> ${n.imp}</div>`:''}
+            ${n.weak ?`<div class="note-row">⚠️ <b>Слабость:</b> ${n.weak}</div>`:''}
+            ${n.gen  ?`<div class="note-row" style="color:var(--text2)">${n.gen}</div>`:''}
+        </div>`).join('');
+}
+
+// ─── Modals ───────────────────────────────────────
+function openModal(id){
+    document.getElementById(id).classList.add('open');
+    if(id==='m-mock') document.getElementById('mk-date').value=todayStr();
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function bgClose(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
+
+function addMock(){
+    const l=document.getElementById('mk-l').value, r=document.getElementById('mk-r').value;
+    const w=document.getElementById('mk-w').value, s=document.getElementById('mk-s').value;
+    const d=document.getElementById('mk-date').value;
+    if(!l||!r||!w||!s||!d) return;
+    const mocks=load('mocks'); mocks.push({date:d,l:+l,r:+r,w:+w,s:+s}); save('mocks',mocks);
+    ['mk-l','mk-r','mk-w','mk-s'].forEach(id=>document.getElementById(id).value='');
+    closeModal('m-mock'); drawProgress();
+}
+
+function addWord(){
+    const word=document.getElementById('vw-word').value.trim();
+    if(!word) return;
+    const vocab=load('vocab');
+    vocab.push({word, def:document.getElementById('vw-def').value.trim(), ex:document.getElementById('vw-ex').value.trim(), topic:document.getElementById('vw-topic').value, date:todayStr()});
+    save('vocab',vocab);
+    ['vw-word','vw-def','vw-ex'].forEach(id=>document.getElementById(id).value='');
+    closeModal('m-vocab'); drawVocab();
+}
+
+// ─── Life sections ───────────────────────────────
+const LIFE_SECTIONS = [
+    { key:'workout',   title:'Тренировки',    icon:'🏋️', color:'#FF9500' },
+    { key:'nutrition', title:'Питание',        icon:'🥗', color:'#34C759' },
+    { key:'skin',      title:'Здоровье кожи',  icon:'💆', color:'#FF2D55' },
+    { key:'research',  title:'Исследования',   icon:'🔬', color:'#5856D6' },
+];
+
+function loadLife() {
+    const saved = localStorage.getItem('life');
+    if(saved) return JSON.parse(saved);
+    const def = {};
+    LIFE_SECTIONS.forEach(s => { def[s.key] = { tasks: [], notes: '' }; });
+    return def;
+}
+function saveLife(data) { localStorage.setItem('life', JSON.stringify(data)); }
+
+function drawLife() {
+    const data = loadLife();
+    const wrap = document.getElementById('life-sections');
+    wrap.innerHTML = LIFE_SECTIONS.map(s => {
+        const sec    = data[s.key] || { tasks: [], notes: '' };
+        const total  = sec.tasks.length;
+        const done   = sec.tasks.filter(t=>t.done).length;
+        const pct    = total ? Math.round(done/total*100) : 0;
+
+        const taskRows = sec.tasks.map(t => `
+            <div class="lc-task-item" id="lt-${s.key}-${t.id}">
+                <div class="lc-task-check${t.done?' on':''}" onclick="toggleLifeTask('${s.key}',${t.id})">${t.done?'✓':''}</div>
+                <div class="lc-task-text${t.done?' done':''}">${t.text}</div>
+                <button class="lc-del" onclick="deleteLifeTask('${s.key}',${t.id})">×</button>
+            </div>`).join('');
+
+        return `<div class="lc-card">
+            <div class="lc-header">
+                <span class="lc-icon">${s.icon}</span>
+                <span class="lc-title">${s.title}</span>
+                <div class="lc-mini-track">
+                    <div class="lc-mini-fill" style="width:${pct}%;background:${s.color}"></div>
+                </div>
+                <span class="lc-count" style="color:${s.color}">${done}/${total}</span>
+            </div>
+            <div id="lc-tasks-${s.key}">
+                ${taskRows || '<div style="padding:10px 16px;font-size:13px;color:var(--text3)">Нет задач</div>'}
+            </div>
+            <div class="lc-add-row">
+                <input class="lc-input" id="lci-${s.key}" type="text" placeholder="Добавить задачу..."
+                    onkeydown="if(event.key==='Enter') addLifeTask('${s.key}')">
+                <button class="lc-add-submit" onclick="addLifeTask('${s.key}')">+</button>
+            </div>
+            <div class="lc-notes-wrap">
+                <div class="lc-notes-lbl">Заметки</div>
+                <textarea class="lc-notes-area" id="lcn-${s.key}" rows="3"
+                    placeholder="Наблюдения, планы, детали...">${sec.notes}</textarea>
+                <button class="lc-save-btn" onclick="saveLifeNotes('${s.key}')">Сохранить заметки</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function addLifeTask(key) {
+    const input = document.getElementById('lci-'+key);
+    const text  = input.value.trim();
+    if(!text) return;
+    const data  = loadLife();
+    if(!data[key]) data[key] = { tasks: [], notes: '' };
+    data[key].tasks.push({ id: Date.now(), text, done: false });
+    saveLife(data);
+    input.value = '';
+    drawLife();
+    document.getElementById('lci-'+key).focus();
+}
+
+function toggleLifeTask(key, id) {
+    const data = loadLife();
+    const task = data[key].tasks.find(t=>t.id===id);
+    if(task) task.done = !task.done;
+    saveLife(data);
+    drawLife();
+}
+
+function deleteLifeTask(key, id) {
+    const data = loadLife();
+    data[key].tasks = data[key].tasks.filter(t=>t.id!==id);
+    saveLife(data);
+    drawLife();
+}
+
+function saveLifeNotes(key) {
+    const data = loadLife();
+    if(!data[key]) data[key] = { tasks: [], notes: '' };
+    data[key].notes = document.getElementById('lcn-'+key).value;
+    saveLife(data);
+    const btn = event.target;
+    btn.textContent = 'Сохранено ✓';
+    btn.style.color = 'var(--green)';
+    setTimeout(()=>{ btn.textContent='Сохранить заметки'; btn.style.color=''; }, 1500);
+}
+
+// ─── Resources ───────────────────────────────────
+const DEFAULT_RES = [
+    { id:101, name:'IELTS Simon',           type:'Writing',    pct:0, notes:'' },
+    { id:102, name:'IELTS Liz',             type:'Общее',      pct:0, notes:'' },
+    { id:103, name:'Exam English',          type:'Mock Tests', pct:0, notes:'' },
+    { id:104, name:'BBC 6 Minute English',  type:'Listening',  pct:0, notes:'' },
+    { id:105, name:'Test-English.com',      type:'Grammar',    pct:0, notes:'' },
+    { id:106, name:'IELTS Buddy',           type:'Mock Tests', pct:0, notes:'' },
+    { id:107, name:'Cambridge IELTS 14–19', type:'Mock Tests', pct:0, notes:'' },
+    { id:108, name:'British Council',       type:'Общее',      pct:0, notes:'' },
+];
+
+const TYPE_COLOR = {
+    'Writing':'#007AFF','Reading':'#34C759','Listening':'#FF9500',
+    'Speaking':'#AF52DE','Vocabulary':'#FF2D55','Grammar':'#5AC8FA',
+    'Mock Tests':'#FF3B30','Общее':'#8E8E93'
+};
+
+function loadRes() {
+    const saved = load('resources');
+    return saved.length ? saved : JSON.parse(JSON.stringify(DEFAULT_RES));
+}
+function saveResData(arr) { save('resources', arr); }
+
+function drawRes() {
+    const list = loadRes();
+    const el   = document.getElementById('res-list');
+    if(!list.length){ el.innerHTML='<div class="empty"><div class="empty-icon">🔗</div>Нет ресурсов</div>'; return; }
+    el.innerHTML = list.map(r => {
+        const pct   = Math.min(100, Math.max(0, +r.pct || 0));
+        const color = TYPE_COLOR[r.type] || '#8E8E93';
+        const dot   = pct===100 ? '#34C759' : pct>0 ? '#FF9500' : '#C6C6C8';
+        return `<div class="res-item" onclick="openEditRes(${r.id})">
+            <div class="status-dot" style="background:${dot}"></div>
+            <div class="res-body">
+                <div class="res-name">${r.name}</div>
+                <div class="res-meta" style="color:${color}">${r.type}</div>
+                ${r.notes ? `<div class="res-notes">${r.notes}</div>` : ''}
+                <div class="res-prog-row">
+                    <div class="res-prog-track">
+                        <div class="res-prog-fill" style="width:${pct}%;background:${color}"></div>
+                    </div>
+                    <div class="res-pct">${pct}%</div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openAddRes() {
+    document.getElementById('res-modal-title').textContent = 'Новый ресурс';
+    document.getElementById('re-id').value    = '';
+    document.getElementById('re-name').value  = '';
+    document.getElementById('re-pct').value   = '0';
+    document.getElementById('re-notes').value = '';
+    openModal('m-res');
+}
+
+function openEditRes(id) {
+    const r = loadRes().find(r=>r.id===id);
+    if(!r) return;
+    document.getElementById('res-modal-title').textContent = 'Изменить ресурс';
+    document.getElementById('re-id').value    = id;
+    document.getElementById('re-name').value  = r.name;
+    document.getElementById('re-type').value  = r.type;
+    document.getElementById('re-pct').value   = r.pct;
+    document.getElementById('re-notes').value = r.notes;
+    openModal('m-res');
+}
+
+function saveRes() {
+    const name  = document.getElementById('re-name').value.trim();
+    if(!name) return;
+    const type  = document.getElementById('re-type').value;
+    const pct   = Math.min(100, Math.max(0, +document.getElementById('re-pct').value || 0));
+    const notes = document.getElementById('re-notes').value.trim();
+    const idVal = document.getElementById('re-id').value;
+    const list  = loadRes();
+
+    if(idVal) {
+        const idx = list.findIndex(r=>r.id===+idVal);
+        if(idx>-1) Object.assign(list[idx], {name, type, pct, notes});
+    } else {
+        list.push({ id: Date.now(), name, type, pct, notes });
+    }
+    saveResData(list);
+    closeModal('m-res');
+    drawRes();
+}
+
+// ─── Firebase Sync ───────────────────────────────
+let fbDb      = null;
+let fbKey     = '';
+let fbPushTmr = null;
+
+function fbRef() {
+    if(!fbDb || !fbKey) return null;
+    return fbDb.ref('ielts/' + fbKey);
+}
+
+function setSyncStatus(state) {
+    const badge = document.getElementById('sync-badge');
+    const txt   = document.getElementById('sync-txt');
+    const dot   = badge ? badge.querySelector('.sync-dot') : null;
+    if(!badge) return;
+    badge.className = 'sync-badge ' + state;
+    dot.className   = 'sync-dot' + (state==='syncing'?' pulse':'');
+    const labels = { off:'не подключён', ok:'синхронизировано', syncing:'синхронизация...', err:'ошибка' };
+    txt.textContent = labels[state] || state;
+}
+
+function initFirebase() {
+    const apiKey = localStorage.getItem('fb_apikey');
+    const dbUrl  = localStorage.getItem('fb_dburl');
+    const projId = localStorage.getItem('fb_projid');
+    fbKey        = localStorage.getItem('fb_key') || '';
+    if(!apiKey || !dbUrl || !projId || !fbKey) { setSyncStatus('off'); return; }
+    try {
+        if(!firebase.apps.length) {
+            firebase.initializeApp({
+                apiKey,
+                authDomain:     projId + '.firebaseapp.com',
+                databaseURL:    dbUrl,
+                projectId:      projId,
+                storageBucket:  projId + '.appspot.com',
+            });
+        }
+        fbDb = firebase.database();
+        setSyncStatus('syncing');
+        pullFromFirebase();
+    } catch(e) {
+        console.error('Firebase init:', e);
+        setSyncStatus('err');
+    }
+}
+
+function pullFromFirebase() {
+    const ref = fbRef();
+    if(!ref) return;
+    setSyncStatus('syncing');
+    ref.once('value').then(snap => {
+        const data = snap.val();
+        if(data) {
+            SYNC_KEYS.forEach(k => { if(data[k] !== undefined) localStorage.setItem(k, data[k]); });
+            drawSchedule(); drawRes(); drawVocab();
+        }
+        setSyncStatus('ok');
+    }).catch(() => setSyncStatus('err'));
+}
+
+function pushToFirebase(manual) {
+    const ref = fbRef();
+    if(!ref) { if(manual) alert('Firebase не настроен. Зайди в настройки синхронизации.'); return; }
+    clearTimeout(fbPushTmr);
+    const doPush = () => {
+        setSyncStatus('syncing');
+        const data = {};
+        SYNC_KEYS.forEach(k => { const v = localStorage.getItem(k); if(v) data[k] = v; });
+        ref.set(data)
+           .then(() => setSyncStatus('ok'))
+           .catch(() => setSyncStatus('err'));
+    };
+    if(manual) doPush();
+    else fbPushTmr = setTimeout(doPush, 1500);
+}
+
+function saveFbConfig() {
+    const apiKey  = document.getElementById('fb-apikey').value.trim();
+    const dbUrl   = document.getElementById('fb-dburl').value.trim();
+    const projId  = document.getElementById('fb-projid').value.trim();
+    const syncKey = document.getElementById('fb-synckey').value.trim();
+    if(!apiKey || !dbUrl || !projId || !syncKey) {
+        alert('Заполни все поля'); return;
+    }
+    localStorage.setItem('fb_apikey', apiKey);
+    localStorage.setItem('fb_dburl',  dbUrl);
+    localStorage.setItem('fb_projid', projId);
+    localStorage.setItem('fb_key',    syncKey);
+    closeModal('m-firebase');
+    // Reinit
+    fbDb = null;
+    firebase.apps.forEach(a => a.delete());
+    setTimeout(initFirebase, 300);
+}
+
+function disconnectFb() {
+    ['fb_apikey','fb_dburl','fb_projid','fb_key'].forEach(k => localStorage.removeItem(k));
+    fbDb = null; fbKey = '';
+    try { firebase.apps.forEach(a => a.delete()); } catch(e) {}
+    setSyncStatus('off');
+    closeModal('m-firebase');
+}
+
+function openFbModal() {
+    document.getElementById('fb-apikey').value  = localStorage.getItem('fb_apikey') || '';
+    document.getElementById('fb-dburl').value   = localStorage.getItem('fb_dburl')  || '';
+    document.getElementById('fb-projid').value  = localStorage.getItem('fb_projid') || '';
+    document.getElementById('fb-synckey').value = localStorage.getItem('fb_key')    || '';
+    openModal('m-firebase');
+}
+
+// Override save to also push to Firebase
+const _origSave = save;
+// Patch: wrap existing save calls by overriding localStorage.setItem via pushToFirebase debounce
+// We hook into the explicit save() function instead:
+// (save is already defined, we'll wrap it after declaration)
+
+// ─── Export / Import ─────────────────────────────
+const SYNC_KEYS = ['checks','mocks','vocab','notes','thoughts','resources','life','sched_custom'];
+
+function openExport() {
+    document.getElementById('sync-title').textContent   = 'Экспорт данных';
+    document.getElementById('sync-lbl').textContent     = 'Скопируй и отправь себе (Telegram, Notes):';
+    document.getElementById('sync-copy-btn').style.display = '';
+    document.getElementById('sync-import-wrap').style.display = 'none';
+    document.getElementById('sync-area').removeAttribute('readonly'); // allow select on iOS
+    document.getElementById('sync-area').setAttribute('readonly','');
+
+    const data = {};
+    SYNC_KEYS.forEach(k => { const v = localStorage.getItem(k); if(v) data[k] = v; });
+    document.getElementById('sync-area').value = JSON.stringify(data);
+    openModal('m-sync');
+    setTimeout(() => {
+        const ta = document.getElementById('sync-area');
+        ta.focus(); ta.select(); ta.setSelectionRange(0, 99999);
+    }, 350);
+}
+
+function syncCopy() {
+    const ta = document.getElementById('sync-area');
+    ta.select(); ta.setSelectionRange(0, 99999);
+    if(navigator.clipboard) {
+        navigator.clipboard.writeText(ta.value).then(() => {
+            const btn = document.getElementById('sync-copy-btn');
+            btn.textContent = 'Скопировано ✓'; btn.style.background = 'var(--green)';
+            setTimeout(() => { btn.textContent='Копировать всё'; btn.style.background=''; }, 2000);
+        });
+    } else {
+        document.execCommand('copy');
+    }
+}
+
+function openImport() {
+    document.getElementById('sync-title').textContent   = 'Импорт данных';
+    document.getElementById('sync-lbl').textContent     = 'Вставь экспортированные данные:';
+    document.getElementById('sync-copy-btn').style.display = 'none';
+    document.getElementById('sync-import-wrap').style.display = '';
+    document.getElementById('sync-area').value = '';
+    document.getElementById('import-area').value = '';
+    // hide top area, only show import
+    document.getElementById('sync-area').style.display = 'none';
+    openModal('m-sync');
+}
+
+function doImport() {
+    const json = document.getElementById('import-area').value.trim();
+    if(!json) return;
+    try {
+        const data = JSON.parse(json);
+        SYNC_KEYS.forEach(k => { if(data[k]) localStorage.setItem(k, data[k]); });
+        closeModal('m-sync');
+        document.getElementById('sync-area').style.display = '';
+        setTimeout(() => location.reload(), 200);
+    } catch(e) {
+        alert('Ошибка: неверный формат. Скопируй данные полностью.');
+    }
+}
+
+// ─── Init ─────────────────────────────────────────
+
+// Wrap save() to auto-push to Firebase
+const _save = save;
+window.save = (k, v) => { _save(k, v); pushToFirebase(); };
+
+// Wrap saveLife() similarly
+const _saveLife = saveLife;
+window.saveLife = (data) => { _saveLife(data); pushToFirebase(); };
+
+initFirebase();
+drawSchedule();
+drawRes();
+setInterval(drawSchedule, 60_000);
+</script>
+</body>
+</html>
